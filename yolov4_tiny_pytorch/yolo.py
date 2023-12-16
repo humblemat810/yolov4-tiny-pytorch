@@ -151,13 +151,16 @@ class YOLO(object):
             #---------------------------------------------------------#
             #   将预测框进行堆叠，然后进行非极大抑制
             #---------------------------------------------------------#
-            results = self.bbox_util.non_max_suppression(torch.cat(outputs, 1), self.num_classes, self.input_shape, 
+            results = self.bbox_util.non_max_suppression(torch.cat(outputs, 1).cpu(), self.num_classes, self.input_shape, 
                         image_shape, self.letterbox_image, conf_thres = self.confidence, nms_thres = self.nms_iou)
-                                                    
-            if results[0] is None: 
-                return image
             if bbox_only:
-                return outputs
+                if results[0] is None:
+                    return []
+                else:
+                    return results[0]
+            if results[0] is None:
+                return image
+            
             
             top_label   = np.array(results[0][:, 6], dtype = 'int32')
             top_conf    = results[0][:, 4] * results[0][:, 5]
@@ -213,18 +216,16 @@ class YOLO(object):
 
             label = '{} {:.2f}'.format(predicted_class, score)
             draw = ImageDraw.Draw(image)
-            label_size = draw.textsize(label, font)
+            
             label = label.encode('utf-8')
             print(label, top, left, bottom, right)
             
-            if top - label_size[1] >= 0:
-                text_origin = np.array([left, top - label_size[1]])
-            else:
-                text_origin = np.array([left, top + 1])
+            
+            text_origin = np.array([left, top + 1])
 
             for i in range(thickness):
                 draw.rectangle([left + i, top + i, right - i, bottom - i], outline=self.colors[c])
-            draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.colors[c])
+            draw.rectangle([tuple(text_origin), tuple(text_origin)], fill=self.colors[c])
             draw.text(text_origin, str(label,'UTF-8'), fill=(0, 0, 0), font=font)
             del draw
 
